@@ -1,0 +1,56 @@
+export const robot = {
+  x: 480, y: 540, width: 40, height: 20, angle: 0,
+  speed: 0, turnSpeed: 0,
+  maxSpeed: 200,     // px/s forward
+  maxReverse: 80,    // px/s backward
+  accel: 250,        // px/s^2 when speeding up
+  brake: 500,        // px/s^2 when released or opposed
+  maxTurnSpeed: 2.5, // rad/s
+  turnAccel: 8,      // rad/s^2
+  turnBrake: 16,     // rad/s^2
+  sensors: [
+    // lidarSensor(
+    //     // Future parameters for the lidar sensor can be added here
+    // )
+  ]
+};
+
+export function drawRobot(ctx, robot, scrollX, scrollY) {
+  ctx.save();
+  ctx.translate(robot.x + scrollX, robot.y + scrollY);
+  ctx.rotate(robot.angle);
+  ctx.fillStyle = "blue";
+  ctx.fillRect(-robot.width / 2, -robot.height / 2, robot.width, robot.height);
+  ctx.restore();
+}
+
+function approach(v, target, step) {
+  return v < target ? Math.min(v + step, target) : Math.max(v - step, target);
+}
+
+export function updateRobot(robot, dt, keys) {
+  dt = Math.min(dt, 0.05);
+
+  const throttle = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
+  const steer = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+
+  const targetSpeed = throttle > 0 ? robot.maxSpeed
+                    : throttle < 0 ? -robot.maxReverse : 0;
+  const targetTurn = steer * robot.maxTurnSpeed;
+
+  // accelerate only when the input agrees with current motion, otherwise brake
+  const speedRate =
+    throttle !== 0 && (robot.speed === 0 || Math.sign(throttle) === Math.sign(robot.speed))
+      ? robot.accel : robot.brake;
+  const turnRate =
+    steer !== 0 && (robot.turnSpeed === 0 || Math.sign(steer) === Math.sign(robot.turnSpeed))
+      ? robot.turnAccel : robot.turnBrake;
+
+  robot.speed = approach(robot.speed, targetSpeed, speedRate * dt);
+  robot.turnSpeed = approach(robot.turnSpeed, targetTurn, turnRate * dt);
+
+  // integrate after the velocity update
+  robot.angle += robot.turnSpeed * dt;
+  robot.x += Math.cos(robot.angle) * robot.speed * dt;
+  robot.y += Math.sin(robot.angle) * robot.speed * dt;
+}
